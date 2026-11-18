@@ -1,196 +1,218 @@
 #!/usr/bin/env python3
-"""Build entry.png: a one-page world-news infographic for 18 November 2026.
+"""Build entry.png v2 for the make.fun news-image-20261118 bounty.
 
-Draws everything with PIL (no photos, no downloaded art). Deterministic:
-same input always produces the same PNG bytes.
+Draws a one-page newspaper-style front page of Wednesday 18 November
+2026 world news with Pillow: 40 stories across 6 sections, grouped by
+region/field. Purely a build tool: it is NOT part of the entry
+repository (the entry ships only main.py, entry.png, LICENSE and
+README.md). Run: python3 build_image.py  -> writes entry.png next to it.
 """
-
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1024, 1024
-BG = (247, 245, 239)
-NAVY = (16, 35, 63)
-RED = (178, 34, 34)
-INK = (24, 24, 24)
-GREY = (90, 90, 90)
-WHITE = (255, 255, 255)
-PANEL = (255, 255, 255)
-BORDER = (200, 196, 188)
+OUT = "entry.png"
 
-FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FONT_R = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_SERIF = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
+
+NAVY = (16, 35, 63)
+GOLD = (201, 162, 39)
+PAPER = (250, 248, 242)
+INK = (24, 28, 36)
+MUTED = (96, 102, 112)
+RULE = (208, 203, 192)
+
+# 40 stories: (headline, one-line fact). All reported in the 18 Nov 2026
+# news cycle, verified against OneTurn, Reuters, Al Jazeera, AP, BBC,
+# The Independent and the day's roundups.
+SECTIONS = [
+    ("EUROPE", (179, 38, 30), [
+        ("Ukraine hits Crimea bridge again",
+         "Road span collapses into Kerch Strait after a second strike"),
+        ("Russia pounds Kyiv bridges in reply",
+         "Northern and Southern bridges hit; power and water cut"),
+        ("Russian military plane crashes, 19 dead",
+         "An-12 goes down in Kemerovo region; all aboard killed"),
+        ("France hit by second nationwide strike",
+         "146,000 protest as unions strike over living costs"),
+        ("Moldova closes airspace after drones",
+         "Russian drones cross the border; flights suspended"),
+        ("Five EU states plan Rwanda return hubs",
+         "Vienna plan sends rejected asylum seekers to Kigali"),
+        ("UK and Germany push back on U.S. over Ukraine",
+         "Allies reject U.S. criticism of Kyiv's deep strikes"),
+    ]),
+    ("MIDDLE EAST", (194, 94, 0), [
+        ("U.S. strikes IRGC site on Qeshm Island",
+         "Jets hit a missile site after Iran's drone attacks"),
+        ("Iran fires drones at U.S. base in Bahrain",
+         "Third attack on Bahrain in under a week; intercepted"),
+        ("Tanker hit near Strait of Hormuz",
+         "LPG tanker Tara Gas struck; shipping stays on alert"),
+        ("Houthis advance in Yemen; army retreats",
+         "Fighters seize coast 100 km west of Aden"),
+        ("Iran refuses UN nuclear inspection",
+         "No IAEA visits until the war ends, Tehran says"),
+        ("Gaza ceasefire may collapse, board warns",
+         "Truce under strain as aid access stalls"),
+        ("Knesset elects Kahana as speaker",
+         "Netanyahu's opponents take control of the agenda"),
+    ]),
+    ("ASIA-PACIFIC", (14, 124, 123), [
+        ("Xi, Trump and Putin to meet in Shenzhen",
+         "First three-way summit set for Thursday at APEC"),
+        ("APEC summit opens in Shenzhen",
+         "Putin arrives as China hosts the 33rd leaders' meeting"),
+        ("Japan scrambles jets over Russian planes",
+         "Two suspected Russian aircraft violate airspace"),
+        ("Quad unveils minerals pacts in Manila",
+         "Trump announces critical-minerals and defence deals"),
+        ("Modi proposes free e-visas for ASEAN",
+         "India pitches open travel at East Asia Summit"),
+        ("Cyclone Akvan nears India's Andhra coast",
+         "Landfall due 20 Nov; winds to 145 km/h, red alert"),
+        ("Cyclone Xavier hits Cook Islands",
+         "Category 5 storm, gusts to 315 km/h in the north"),
+    ]),
+    ("AMERICAS", (31, 78, 121), [
+        ("Peltola wins Alaska Senate race",
+         "Democrat's win gives her party 56 seats"),
+        ("U.S. loses measles-free status after 26 years",
+         "5,412 cases, worst since 1991, PAHO rules"),
+        ("NSA network goes down in U.S. outages",
+         "Latest of at least eight major outages in a week"),
+        ("Pentagon fails its audit \u2014 9th year in a row",
+         "Auditors cannot verify $4.8 trillion in assets"),
+        ("U.S. tightens chip access rules for China",
+         "New export rule hits data centres; Beijing vows payback"),
+        ("U.S. soldier held in UK over spying claim",
+         "Taken into U.S. military custody after arrest"),
+        ("Man gets 27 years over Iran-linked plot",
+         "Plot against Trump; sentenced in New York"),
+    ]),
+    ("AFRICA", (110, 80, 150), [
+        ("Ebola outbreak in DR Congo more than doubles",
+         "11,000 cases and 5,400 deaths, UN says"),
+        ("Nigeria: U.S. intel helps target militants",
+         "Near-daily missions back 2027 election security"),
+        ("South Africa probes shootings that killed 17",
+         "Weekend attacks in Pretoria and KwaZulu-Natal"),
+        ("Ghana curbs raw cashew exports",
+         "Mahama backs local processing with a new levy"),
+        ("African Union pushes Sudan and Congo peace",
+         "Regional solutions urged for both wars"),
+        ("Clashes near Eritrean border raise war fears",
+         "Fighting in Tigray stokes wider-war worries"),
+    ]),
+    ("BUSINESS \u00b7 TECH \u00b7 SPORT", (46, 125, 50), [
+        ("Nvidia beats forecasts after CEO exit",
+         "Revenue $115.8bn tops estimates under interim chief"),
+        ("Anthropic set to list on Nasdaq Nov. 19",
+         "$1.4 trillion IPO priced; AI firm goes public"),
+        ("Amazon to invest $7bn in India renewables",
+         "Solar and data centres by 2030"),
+        ("Dhoni retires from IPL, becomes CSK mentor",
+         "CSK legend, 45, ends playing career after 272 games"),
+        ("Fela Kuti enters Rock & Roll Hall of Fame",
+         "First African-born artist inducted, posthumously"),
+        ("Pattinson named as new James Bond",
+         "British actor succeeds Daniel Craig in reboot"),
+    ]),
+]
 
 
 def font(path, size):
     return ImageFont.truetype(path, size)
 
 
-def wrap(draw, text, fnt, max_w):
-    """Wrap text to fit max_w pixels, returning a list of lines."""
-    words = text.split()
-    lines, cur = [], ""
-    for word in words:
-        trial = (cur + " " + word).strip()
-        if draw.textlength(trial, font=fnt) <= max_w:
-            cur = trial
+def fit_one_line(d, text, fnt, max_w):
+    """Truncate to a single line with an ellipsis if it is too wide."""
+    if d.textlength(text, font=fnt) <= max_w:
+        return text
+    ell = "\u2026"
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if d.textlength(text[:mid] + ell, font=fnt) <= max_w:
+            lo = mid
         else:
-            if cur:
-                lines.append(cur)
-            cur = word
-    if cur:
-        lines.append(cur)
-    return lines
+            hi = mid - 1
+    return text[:lo].rstrip() + ell
 
 
-def draw_globe(d, cx, cy, r, color, width=3):
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=width)
+def draw_globe(d, cx, cy, r, color):
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=3)
     d.ellipse([cx - r * 0.45, cy - r, cx + r * 0.45, cy + r],
-              outline=color, width=width)
-    d.line([cx - r, cy, cx + r, cy], fill=color, width=width)
-    d.arc([cx - r, cy - r * 0.55, cx + r, cy + r * 0.55],
-          200, 340, fill=color, width=width)
-    d.arc([cx - r, cy - r * 0.55, cx + r, cy + r * 0.55],
-          20, 160, fill=color, width=width)
-
-
-def draw_bridge(d, x, y, s, color):
-    # two towers, deck, suspension arc
-    d.line([x + 6, y + s - 4, x + s - 6, y + s - 4], fill=color, width=4)
-    d.line([x + 12, y + 8, x + 12, y + s - 4], fill=color, width=4)
-    d.line([x + s - 12, y + 8, x + s - 12, y + s - 4], fill=color, width=4)
-    d.arc([x + 12, y + 2, x + s - 12, y + s - 8], 180, 360, fill=color, width=3)
-    d.line([x + 12, y + 8, x + s // 2, y + 26], fill=color, width=2)
-    d.line([x + s - 12, y + 8, x + s // 2, y + 26], fill=color, width=2)
-
-
-def draw_radar(d, x, y, s, color):
-    cx, cy, r = x + s // 2, y + s // 2, s // 2 - 4
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=3)
-    d.ellipse([cx - r // 2, cy - r // 2, cx + r // 2, cy + r // 2],
               outline=color, width=2)
-    d.line([cx, cy, cx + r - 2, cy - r + 8], fill=color, width=3)
-    d.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=color)
-
-
-def draw_chip(d, x, y, s, color):
-    m = 10
-    d.rectangle([x + m, y + m, x + s - m, y + s - m], outline=color, width=4)
-    d.rectangle([x + m + 8, y + m + 8, x + s - m - 8, y + s - m - 8],
-                outline=color, width=2)
-    for i in range(3):
-        px = x + m + 8 + i * (s - 2 * m - 16) // 2
-        d.line([px, y + 2, px, y + m], fill=color, width=3)
-        d.line([px, y + s - m, px, y + s - 2], fill=color, width=3)
-        py = y + m + 8 + i * (s - 2 * m - 16) // 2
-        d.line([x + 2, py, x + m, py], fill=color, width=3)
-        d.line([x + s - m, py, x + s - 2, py], fill=color, width=3)
-
-
-def draw_cyclone(d, x, y, s, color):
-    cx, cy = x + s // 2, y + s // 2
-    for i, r in enumerate((26, 19, 12)):
-        d.arc([cx - r, cy - r, cx + r, cy + r], 40 + i * 60, 300 + i * 60,
-              fill=color, width=4)
-    d.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=color)
-
-
-def draw_virus(d, x, y, s, color):
-    cx, cy, r = x + s // 2, y + s // 2, 16
-    for ang in range(0, 360, 45):
-        import math
-        a = math.radians(ang)
-        x1, y1 = cx + int(r * math.cos(a)), cy + int(r * math.sin(a))
-        x2, y2 = cx + int((r + 9) * math.cos(a)), cy + int((r + 9) * math.sin(a))
-        d.line([x1, y1, x2, y2], fill=color, width=3)
-        d.ellipse([x2 - 3, y2 - 3, x2 + 3, y2 + 3], outline=color, width=2)
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=3)
-    d.ellipse([cx - 6, cy - 5, cx - 1, cy], fill=color)
-    d.ellipse([cx + 2, cy + 2, cx + 7, cy + 7], fill=color)
-
-
-def draw_flags(d, x, y, s, color):
-    # two small flags on poles (diplomacy)
-    d.line([x + 14, y + 8, x + 14, y + s - 6], fill=color, width=3)
-    d.line([x + s - 14, y + 8, x + s - 14, y + s - 6], fill=color, width=3)
-    d.polygon([(x + 14, y + 8), (x + 34, y + 13), (x + 14, y + 19)],
-              fill=color)
-    d.polygon([(x + s - 14, y + 8), (x + s - 34, y + 13), (x + s - 14, y + 19)],
-              fill=color)
-
-
-STORIES = [
-    ("EUROPE  •  WAR", (178, 34, 34),
-     "Ukraine hits Crimean Bridge again",
-     "Kyiv strikes the bridge for a second day as Russia hits bridges in Kyiv.",
-     draw_bridge),
-    ("MIDDLE EAST", (146, 90, 16),
-     "Iran drones target US radar in Bahrain",
-     "US says the drones were intercepted; US jets hit a missile site on Qeshm Island.",
-     draw_radar),
-    ("ASIA  •  DIPLOMACY", (16, 90, 140),
-     "Trump lands in Manila for Quad talks",
-     "US president joins Quad leaders before a planned visit to China.",
-     draw_flags),
-    ("TECH  •  BUSINESS", (24, 110, 70),
-     "Nvidia sales double to $115.8bn",
-     "Board rules out bringing back ex-CEO Jensen Huang after a record quarter.",
-     draw_chip),
-    ("WEATHER  •  ASIA", (10, 110, 140),
-     "Cyclone Akvan gains strength",
-     "Storm over the Bay of Bengal is set to become severe by 19 November.",
-     draw_cyclone),
-    ("HEALTH  •  USA", (110, 40, 120),
-     "US loses measles-free status",
-     "PAHO ends the 26-year status after 5,412 cases in 2026, the most since 1991.",
-     draw_virus),
-]
+    d.line([cx - r, cy, cx + r, cy], fill=color, width=2)
+    d.arc([cx - r, cy - r * 0.55, cx + r, cy + r * 0.55],
+          start=200, end=340, fill=color, width=2)
+    d.arc([cx - r, cy - r * 0.55, cx + r, cy + r * 0.55],
+          start=20, end=160, fill=color, width=2)
 
 
 def main():
-    img = Image.new("RGB", (W, H), BG)
+    img = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(img)
 
-    # Header
-    d.rectangle([0, 0, W, 132], fill=NAVY)
-    d.rectangle([0, 132, W, 138], fill=RED)
-    f_title = font(FONT_B, 52)
-    f_date = font(FONT_B, 32)
-    d.text((32, 16), "WORLD NEWS", font=f_title, fill=WHITE)
-    d.text((32, 80), "WEDNESDAY, 18 NOVEMBER 2026", font=f_date, fill=(255, 214, 90))
-    draw_globe(d, 940, 66, 42, (255, 214, 90), width=4)
+    # ---- masthead ----
+    d.rectangle([0, 0, W, 84], fill=NAVY)
+    d.rectangle([0, 84, W, 87], fill=GOLD)
+    draw_globe(d, 46, 42, 22, GOLD)
+    d.text((80, 12), "THE WORLD IN ONE DAY",
+           font=font(FONT_BOLD, 17), fill=GOLD)
+    d.text((78, 34), "Wednesday, 18 November 2026",
+           font=font(FONT_SERIF, 34), fill=(255, 255, 255))
+    f_side = font(FONT_BOLD, 20)
+    d.text((1000 - d.textlength("40 STORIES", font=f_side), 16),
+           "40 STORIES", font=f_side, fill=GOLD)
+    f_side2 = font(FONT_BOLD, 14)
+    d.text((1000 - d.textlength("6 CONTINENTS", font=f_side2), 44),
+           "6 CONTINENTS", font=f_side2, fill=(255, 255, 255))
 
-    # Grid of story panels: 2 columns x 3 rows
-    f_tag = font(FONT_B, 18)
-    f_head = font(FONT_B, 28)
-    f_sum = font(FONT_R, 21)
-    px, py = 16, 156
-    pw, ph, gut = 488, 256, 16
-    for i, (tag, color, head, summ, icon) in enumerate(STORIES):
-        x = px + (i % 2) * (pw + gut)
-        y = py + (i // 2) * (ph + gut)
-        d.rectangle([x, y, x + pw, y + ph], fill=PANEL, outline=BORDER, width=2)
-        d.rectangle([x, y, x + pw, y + 10], fill=color)
-        d.text((x + 20, y + 24), tag, font=f_tag, fill=color)
-        icon(d, x + pw - 84, y + 22, 64, color)
-        lines = wrap(d, head, f_head, pw - 40 - 84)
-        ty = y + 58
-        for line in lines[:2]:
-            d.text((x + 20, ty), line, font=f_head, fill=INK)
-            ty += 35
-        d.line([x + 20, ty + 2, x + 90, ty + 2], fill=color, width=3)
-        slines = wrap(d, summ, f_sum, pw - 40)
-        sy = y + 58 + 35 * min(len(lines), 2) + 18
-        for line in slines[:3]:
-            d.text((x + 20, sy), line, font=f_sum, fill=GREY)
-            sy += 28
+    # ---- subhead: the day's three biggest stories ----
+    d.text((24, 92),
+           "Gulf strikes  \u00b7  Crimea bridge falls  \u00b7  Xi\u2013Trump\u2013Putin summit",
+           font=font(FONT_BOLD, 15), fill=INK)
 
-    # Footer
-    f_foot = font(FONT_R, 18)
-    foot = "Sources: Reuters, AP, The Guardian, PAHO, Nvidia, IMD  •  18 November 2026"
-    fw = d.textlength(foot, font=f_foot)
-    d.text(((W - fw) / 2, 972), foot, font=f_foot, fill=GREY)
+    # ---- sections ----
+    f_sec = font(FONT_BOLD, 14)
+    f_head = font(FONT_BOLD, 14)
+    f_sub = font(FONT_REG, 11)
+    margin, gutter = 24, 16
+    col_w = (W - 2 * margin - gutter) // 2
+    y = 110
+    for name, color, stories in SECTIONS:
+        # section header: colour chip + name + rule
+        d.rectangle([margin, y + 5, margin + 12, y + 17], fill=color)
+        d.text((margin + 20, y + 1), name, font=f_sec, fill=color)
+        name_w = d.textlength(name, font=f_sec)
+        rule_x = margin + 20 + name_w + 12
+        d.line([rule_x, y + 11, W - margin, y + 11], fill=RULE, width=2)
+        gy = y + 24
+        for i, (head, sub) in enumerate(stories):
+            col, row = i % 2, i // 2
+            x = margin + col * (col_w + gutter)
+            cy = gy + row * 34
+            d.text((x, cy),
+                   fit_one_line(d, head, f_head, col_w),
+                   font=f_head, fill=INK)
+            d.text((x, cy + 17),
+                   fit_one_line(d, sub, f_sub, col_w),
+                   font=f_sub, fill=(74, 80, 92))
+        # 7-story sections take 4 rows, 6-story sections 3 rows
+        rows = (len(stories) + 1) // 2
+        y += 24 + rows * 34
 
-    img.save("entry.png", format="PNG", optimize=True)
+    # ---- footer ----
+    d.text((24, 1008),
+           "Events of Wednesday 18 November 2026, as reported. "
+           "Sources: Reuters \u00b7 Al Jazeera \u00b7 AP \u00b7 BBC \u00b7 The Independent",
+           font=font(FONT_REG, 10), fill=MUTED)
+
+    img.save(OUT, "PNG")
+    print("wrote", OUT, img.size)
 
 
 if __name__ == "__main__":

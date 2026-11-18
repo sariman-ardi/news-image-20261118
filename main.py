@@ -1,45 +1,41 @@
-"""Write the 18 November 2026 world-news image to the output directory.
+#!/usr/bin/env python3
+"""Entry program for the news-image-20261118 bounty (round 2).
 
-The image (entry.png) is built by build_image.py from the day's reported
-news and shipped in this repository. This program only copies it to
-$MAKEFUN_OUTPUT_DIR/entry.png, so every run writes identical bytes.
-Standard library only; no network.
+Copies the pre-drawn entry.png (a one-page front page summing up
+Wednesday 18 November 2026 world news in 40 stories) to the output
+directory that make.fun reads. Standard library only, no network,
+deterministic: the output bytes are always identical to the shipped
+The bounty caps the image at 1 MiB (1,048,576 bytes), so the program
+refuses to write any entry.png larger than that instead of silently
+producing an oversize output the scorer would reject.
 """
-
-import hashlib
 import os
-import shutil
-import sys
+from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "entry.png")
-
-
-def sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+HERE = Path(__file__).resolve().parent
+SRC = HERE / "entry.png"
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+MAX_BYTES = 1_048_576  # bounty cap: entry.png must be at most 1 MiB
 
 
 def main():
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR")
-    if not out_dir:
-        print("MAKEFUN_OUTPUT_DIR is not set", file=sys.stderr)
-        return 1
-    if not os.path.isfile(SRC):
-        print("entry.png is missing from the repository", file=sys.stderr)
-        return 1
-    os.makedirs(out_dir, exist_ok=True)
-    dst = os.path.join(out_dir, "entry.png")
-    shutil.copyfile(SRC, dst)
-    # Determinism check: the output must be byte-identical to the source.
-    if sha256(SRC) != sha256(dst):
-        print("output does not match entry.png", file=sys.stderr)
-        return 1
-    return 0
+    if not SRC.is_file():
+        raise SystemExit("entry.png is missing next to main.py")
+    data = SRC.read_bytes()
+    if not data.startswith(PNG_MAGIC):
+        raise SystemExit("entry.png is not a PNG file")
+    if len(data) > MAX_BYTES:
+        raise SystemExit(
+            f"entry.png is {len(data)} bytes, over the 1 MiB bounty cap"
+        )
+    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "out"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "entry.png"
+    out_path.write_bytes(data)
+    # Confirm the copy is byte-identical to the shipped image.
+    if out_path.read_bytes() != data:
+        raise SystemExit("output entry.png does not match the shipped image")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
