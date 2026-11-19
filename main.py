@@ -1,8 +1,9 @@
 """Entrypoint: copy the pre-rendered poster to /output/entry.png.
 
-The poster itself is drawn by build_image.py (pure Pillow, no network,
-deterministic). This entrypoint only verifies the file is a real PNG
-and places it where the harness expects it.
+The poster itself is drawn by build_image.py (Pillow layout over
+pre-rendered AI illustrations, no network, deterministic). This
+entrypoint only verifies the file is a real PNG and places it where
+the harness expects it.
 """
 
 import os
@@ -26,6 +27,7 @@ def main():
     if os.path.getsize(SRC) != os.path.getsize(DST):
         print("copy size mismatch", file=sys.stderr)
         return 1
+    # The copy must be byte-identical to the poster the build produced.
     print("wrote", DST, os.path.getsize(DST), "bytes")
     return 0
 

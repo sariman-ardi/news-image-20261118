@@ -1,7 +1,9 @@
-"""Draw the 18 November 2026 world-news poster, round 4: 52 stories,
-7 regions, 16 flat illustrations drawn with Pillow, a UTC timeline,
-a numbered world map and a date check. Pure Pillow, deterministic."""
+"""Draw the 18 November 2026 world-news poster, round 5: 52 stories,
+7 regions, 16 AI-generated editorial illustrations, a UTC timeline,
+a numbered world map and a date check. Pure Pillow layout; the
+illustrations are pre-rendered PNG files in illustrations/. Deterministic."""
 
+import glob
 import os
 from collections import Counter
 
@@ -9,6 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1024, 1024
 HERE = os.path.dirname(os.path.abspath(__file__))
+ILLO_DIR = os.path.join(HERE, "illustrations")
 OUT = os.path.join(HERE, "entry.png")
 
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
@@ -191,7 +194,7 @@ DATE_CHECK = (
 
 FOOT_SOURCES = ("Sources: Reuters \u00b7 AP \u00b7 AFP \u00b7 DW \u00b7 Al Jazeera \u00b7 NPR \u00b7 CBS \u00b7 Fed \u00b7 "
                 "ONS \u00b7 IMD \u00b7 NASA \u00b7 Amnesty \u00b7 WHO \u00b7 Bloomberg \u00b7 ATP \u00b7 AAP \u00b7 "
-                "Daily Star \u2014 Original drawings.")
+                "Daily Star \u2014 Original AI illustrations.")
 
 
 def font(path, size):
@@ -229,384 +232,108 @@ def wrap(draw, text, fnt, width, max_lines=None):
 
 
 # ---------------------------------------------------------------- illustrations
-# Every illustration is flat vector-style drawing, drawn into a box
-# (x, y, w, h). Bold shapes, few colours, readable at half size.
+# The 16 feature illustrations are AI-generated editorial drawings, stored
+# as PNG files in illustrations/. Each is centre-cropped to the box it
+# fills, so the composition survives at any card size. The pictures carry
+# no words; the few big figures below are laid out by Pillow on top, in
+# clear space verified by eye (dark badge on the two night scenes).
 
-def illo_gulf(draw, x, y, w, h):
-    """Stylised Gulf map: Iran top right, Kuwait/Bahrain, dashed drone paths."""
-    draw.rectangle([x, y, x + w, y + h], fill=(223, 232, 238))
-    # land masses
-    draw.polygon([(x + 8, y + 8), (x + w - 8, y + 6), (x + w - 14, y + h * 0.42),
-                  (x + w * 0.55, y + h * 0.55), (x + 10, y + h * 0.5)], fill=(232, 220, 180))
-    draw.polygon([(x + 6, y + h * 0.55), (x + w * 0.5, y + h * 0.5),
-                  (x + w * 0.62, y + h - 8), (x + 8, y + h - 6)], fill=(222, 208, 164))
-    # the gulf water
-    draw.polygon([(x + w * 0.42, y + h * 0.42), (x + w * 0.78, y + h * 0.30),
-                  (x + w * 0.86, y + h * 0.62), (x + w * 0.60, y + h * 0.72)],
-                 fill=(96, 148, 188))
-    # dashed drone paths (red)
-    for (x1, y1, x2, y2) in [(0.80, 0.18, 0.52, 0.55), (0.72, 0.12, 0.46, 0.48),
-                             (0.86, 0.30, 0.58, 0.60)]:
-        px1, py1 = x + w * x1, y + h * y1
-        px2, py2 = x + w * x2, y + h * y2
-        steps = 9
-        for i in range(steps):
-            if i % 2:
-                continue
-            t1, t2 = i / steps, (i + 0.8) / steps
-            draw.line([px1 + (px2 - px1) * t1, py1 + (py2 - py1) * t1,
-                       px1 + (px2 - px1) * t2, py1 + (py2 - py1) * t2],
-                      fill=RED, width=2)
-        draw.polygon([(px2, py2), (px2 - 7, py2 - 2), (px2 - 7, py2 + 2)], fill=RED)
-    # labels, kept clear of the dashed drone paths (which run top-right
-    # to centre): the two place names sit on the land, left of the Gulf
-    f = font(SANS_B, 11)
-    draw.text((x + w * 0.66, y + 6), "IRAN", font=f, fill=INK)
-    draw.text((x + w * 0.06, y + h * 0.46), "KUWAIT", font=f, fill=RED)
-    draw.text((x + w * 0.06, y + h * 0.60), "BAHRAIN", font=f, fill=RED)
-    draw.text((x + 8, y + h - 16), "SAUDI ARABIA", font=font(SANS_B, 8), fill=GREY)
-    draw.text((x + w * 0.60, y + h * 0.40), "THE GULF", font=font(SANS_B, 8),
-              fill=(255, 255, 255))
+_ILLO_CACHE = {}
 
 
-def illo_plane(draw, x, y, w, h):
-    """Airliner on the tarmac, Shenzhen skyline, sun, three flags."""
-    draw.rectangle([x, y, x + w, y + h], fill=(250, 226, 178))
-    draw.ellipse([x + w * 0.78, y + 6, x + w * 0.92, y + 20], fill=(245, 166, 52))
-    # skyline
-    for bx, bw, bh in [(0.02, 0.10, 0.42), (0.14, 0.08, 0.55), (0.24, 0.12, 0.38),
-                       (0.38, 0.07, 0.62), (0.47, 0.10, 0.45), (0.60, 0.08, 0.58),
-                       (0.70, 0.12, 0.40), (0.84, 0.09, 0.50)]:
-        draw.rectangle([x + w * bx, y + h - 14 - h * bh, x + w * (bx + bw),
-                        y + h - 14], fill=(120, 110, 96))
-    # runway
-    draw.rectangle([x, y + h - 14, x + w, y + h], fill=(90, 90, 96))
-    for i in range(6):
-        draw.rectangle([x + 8 + i * 38, y + h - 8, x + 30 + i * 38, y + h - 5],
-                       fill=(255, 255, 255))
-    # plane: fuselage, wing, tail, windows
-    py = y + h * 0.42
-    draw.ellipse([x + w * 0.06, py - 9, x + w * 0.94, py + 9], fill=(240, 244, 248))
-    draw.polygon([(x + w * 0.88, py - 6), (x + w * 0.99, py - 26),
-                  (x + w * 0.99, py - 4)], fill=(60, 90, 130))
-    draw.polygon([(x + w * 0.45, py + 4), (x + w * 0.62, py + 26),
-                  (x + w * 0.70, py + 4)], fill=(60, 90, 130))
-    draw.polygon([(x + w * 0.06, py - 4), (x + w * 0.02, py - 18),
-                  (x + w * 0.10, py - 4)], fill=(60, 90, 130))
-    for i in range(9):
-        draw.ellipse([x + w * (0.14 + i * 0.075), py - 3,
-                      x + w * (0.14 + i * 0.075) + 4, py + 1], fill=NAVY)
-    # red carpet + flags
-    draw.rectangle([x + w * 0.30, y + h - 26, x + w * 0.72, y + h - 14], fill=RED)
-    for fx, col in [(0.34, (222, 41, 16)), (0.50, (60, 90, 160)), (0.66, (200, 200, 200))]:
-        draw.rectangle([x + w * fx, y + h - 52, x + w * fx + 16, y + h - 38], fill=col)
-        draw.line([x + w * fx + 2, y + h - 52, x + w * fx + 2, y + h - 26],
-                  fill=INK, width=2)
+def illo_image(num):
+    """Load illustration `num` once, cropped to a wide 5:2 frame."""
+    if num in _ILLO_CACHE:
+        return _ILLO_CACHE[num]
+    pattern = os.path.join(ILLO_DIR, "media-generation-illo-%02d-*.png" % num)
+    matches = sorted(glob.glob(pattern))
+    if not matches:
+        raise FileNotFoundError("no illustration for story %d" % num)
+    im = Image.open(matches[0]).convert("RGB")
+    w, h = im.size
+    target = 2.5
+    if w / h > target:
+        nw = int(h * target)
+        x0 = (w - nw) // 2
+        im = im.crop((x0, 0, x0 + nw, h))
+    else:
+        nh = int(w / target)
+        y0 = (h - nh) // 2
+        im = im.crop((0, y0, w, y0 + nh))
+    _ILLO_CACHE[num] = im
+    return im
 
 
-def illo_drones_night(draw, x, y, w, h):
-    """Night sky, drone silhouettes, explosions, big numbers."""
-    draw.rectangle([x, y, x + w, y + h], fill=(16, 24, 46))
-    for sx, sy in [(0.08, 0.12), (0.3, 0.08), (0.55, 0.15), (0.8, 0.07), (0.92, 0.2)]:
-        draw.ellipse([x + w * sx, y + h * sy, x + w * sx + 3, y + h * sy + 3],
-                     fill=(255, 255, 255))
-    # explosions
-    for ex, ey, r in [(0.22, 0.55, 14), (0.62, 0.38, 18), (0.85, 0.62, 12)]:
-        cx, cy = x + w * ex, y + h * ey
-        for a in range(8):
-            import math
-            ang = a * math.pi / 4
-            draw.line([cx, cy, cx + r * math.cos(ang), cy + r * math.sin(ang)],
-                      fill=(245, 166, 52), width=3)
-        draw.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], fill=(255, 214, 90))
-    # drones: small quadcopter silhouettes
-    for dx, dy in [(0.35, 0.30), (0.55, 0.55), (0.78, 0.28)]:
-        cx, cy = x + w * dx, y + h * dy
-        draw.rectangle([cx - 8, cy - 3, cx + 8, cy + 3], fill=(220, 220, 220))
-        draw.line([cx - 12, cy - 6, cx + 12, cy - 6], fill=(220, 220, 220), width=2)
-        draw.line([cx - 12, cy + 6, cx + 12, cy + 6], fill=(220, 220, 220), width=2)
-    # dashed flight paths
-    for (x1, y1, x2, y2) in [(0.05, 0.75, 0.35, 0.32), (0.95, 0.80, 0.60, 0.55)]:
-        px1, py1 = x + w * x1, y + h * y1
-        px2, py2 = x + w * x2, y + h * y2
-        steps = 10
-        for i in range(steps):
-            if i % 2:
-                continue
-            t1, t2 = i / steps, (i + 0.8) / steps
-            draw.line([px1 + (px2 - px1) * t1, py1 + (py2 - py1) * t1,
-                       px1 + (px2 - px1) * t2, py1 + (py2 - py1) * t2],
-                      fill=(245, 166, 52), width=2)
-    f = font(SANS_B, 15)
-    draw.text((x + 8, y + 6), "141 FIRED", font=f, fill=(255, 255, 255))
-    draw.text((x + 8, y + 26), "126 DOWNED", font=f, fill=(255, 214, 90))
+def paste_illo(img, num, x, y, w, h):
+    """Paste illustration `num` into the box (x, y, w, h), cropped to fit."""
+    src = illo_image(num)
+    sw, sh = src.size
+    target = w / h
+    if sw / sh > target:
+        nw = int(sh * target)
+        x0 = (sw - nw) // 2
+        src = src.crop((x0, 0, x0 + nw, sh))
+    else:
+        nh = int(sw / target)
+        y0 = (sh - nh) // 2
+        src = src.crop((0, y0, sw, y0 + nh))
+    img.paste(src.resize((w, h), Image.LANCZOS), (x, y))
 
 
-def illo_voyager(draw, x, y, w, h):
-    """Deep space: Earth, Voyager probe, dashed signal line."""
-    draw.rectangle([x, y, x + w, y + h], fill=(10, 14, 34))
-    for sx, sy in [(0.05, 0.1), (0.2, 0.25), (0.45, 0.08), (0.65, 0.2), (0.85, 0.12),
-                   (0.1, 0.7), (0.35, 0.85), (0.7, 0.75), (0.92, 0.55)]:
-        draw.ellipse([x + w * sx, y + h * sy, x + w * sx + 2, y + h * sy + 2],
-                     fill=(255, 255, 255))
-    # Earth
-    ex, ey, er = x + w * 0.14, y + h * 0.62, 20
-    draw.ellipse([ex - er, ey - er, ex + er, ey + er], fill=(58, 130, 200))
-    draw.ellipse([ex - 12, ey - 8, ex - 2, ey + 2], fill=(80, 170, 90))
-    draw.ellipse([ex + 2, ey + 4, ex + 12, ey + 12], fill=(80, 170, 90))
-    draw.text((ex - 14, ey + er + 2), "EARTH", font=font(SANS_B, 8), fill=(255, 255, 255))
-    # dashed signal line Earth -> Voyager
-    vx, vy = x + w * 0.86, y + h * 0.28
-    steps = 14
-    for i in range(steps):
-        if i % 2:
-            continue
-        t1, t2 = i / steps, (i + 0.8) / steps
-        draw.line([ex + (vx - ex) * t1, ey + (vy - ey) * t1,
-                   ex + (vx - ex) * t2, ey + (vy - ey) * t2],
-                  fill=(245, 200, 80), width=2)
-    # Voyager probe: dish + boom + gold body
-    draw.ellipse([vx - 16, vy - 16, vx + 16, vy + 2], outline=(220, 220, 220), width=2)
-    draw.line([vx, vy - 2, vx - 26, vy + 18], fill=(220, 220, 220), width=2)
-    draw.rectangle([vx - 4, vy + 2, vx + 8, vy + 12], fill=(212, 175, 55))
-    draw.line([vx + 8, vy + 7, vx + 24, vy - 2], fill=(220, 220, 220), width=2)
-    f = font(SANS_B, 17)
-    draw.text((x + w * 0.30, y + 8), "1 LIGHT-DAY", font=f, fill=(255, 214, 90))
-    draw.text((x + w * 0.30, y + 30), "25.9 billion km from Earth",
-              font=font(SANS, 10), fill=(255, 255, 255))
-
-
-def illo_eu_loan(draw, x, y, w, h):
-    """EU flag, euro figure, arrow to Ukraine's blue-yellow flag."""
-    draw.rectangle([x, y, x + w, y + h], fill=(232, 238, 244))
-    # EU flag, top left
-    fx, fy, fw, fh = x + 8, y + 8, 46, 26
-    draw.rectangle([fx, fy, fx + fw, fy + fh], fill=(0, 51, 153))
-    import math
-    for i in range(12):
-        ang = 2 * math.pi * i / 12 - math.pi / 2
-        sx, sy = fx + fw / 2 + 15 * math.cos(ang), fy + fh / 2 + 8 * math.sin(ang)
-        draw.polygon([(sx, sy - 2), (sx + 1, sy - 1), (sx + 2, sy),
-                      (sx + 1, sy + 1), (sx, sy + 2), (sx - 1, sy + 1),
-                      (sx - 2, sy), (sx - 1, sy - 1)], fill=(255, 209, 0))
-    # figure, right of the flag
-    draw.text((x + 60, y + 10), "\u20ac45bn", font=font(SANS_B, 20), fill=NAVY)
-    # arrow to Ukraine flag, bottom right
-    draw.line([x + 60, y + 46, x + 100, y + 46], fill=NAVY, width=3)
-    draw.polygon([(x + 100, y + 46), (x + 92, y + 40), (x + 92, y + 52)], fill=NAVY)
-    ux, uy = x + w - 46, y + 36
-    draw.rectangle([ux, uy, ux + 38, uy + 10], fill=(0, 91, 187))
-    draw.rectangle([ux, uy + 10, ux + 38, uy + 20], fill=(255, 213, 0))
-
-
-def illo_fed(draw, x, y, w, h):
-    """Columned Fed building, red falling chart. No text inside."""
-    draw.rectangle([x, y, x + w, y + h], fill=(238, 236, 228))
-    # building, left
-    bx, by = x + 10, y + 8
-    draw.polygon([(bx, by + 12), (bx + 22, by), (bx + 44, by + 12)],
-                 fill=(150, 148, 138))
-    for i in range(4):
-        draw.rectangle([bx + 3 + i * 11, by + 14, bx + 10 + i * 11, by + 34],
-                       fill=(190, 186, 174))
-    draw.rectangle([bx, by + 34, bx + 44, by + 40], fill=(150, 148, 138))
-    # falling chart, right
-    pts = [(x + 72, y + 12), (x + 86, y + 8), (x + 100, y + 20),
-           (x + 114, y + 16), (x + 132, y + 32)]
-    draw.line(pts, fill=RED, width=3)
-    draw.polygon([(pts[-1][0], pts[-1][1]), (pts[-1][0] - 8, pts[-1][1] - 2),
-                  (pts[-1][0] - 2, pts[-1][1] + 8)], fill=RED)
-
-
-def illo_cyclone(draw, x, y, w, h):
-    """India coast outline, spiral cyclone, landfall arrow."""
-    draw.rectangle([x, y, x + w, y + h], fill=(196, 224, 232))
-    # India-ish triangle
-    draw.polygon([(x + 48, y + 6), (x + 96, y + 6),
-                  (x + 88, y + 34), (x + 66, y + 54),
-                  (x + 50, y + 30)], fill=(222, 208, 164))
-    draw.text((x + 6, y + 6), "INDIA", font=font(SANS_B, 9), fill=GREY)
-    # spiral, kept small so it never touches a label
-    import math
-    cx, cy = x + 118, y + 34
-    pts = []
-    for t in range(0, 540, 12):
-        a = math.radians(t)
-        r = 3 + t / 540 * 13
-        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-    draw.line(pts, fill=(30, 90, 140), width=3)
-    # short arrow toward the coast
-    draw.line([cx - 18, cy - 4, x + 92, y + 30], fill=RED, width=2)
-    draw.polygon([(x + 92, y + 30), (x + 100, y + 28), (x + 94, y + 38)], fill=RED)
-
-
-def illo_gaza(draw, x, y, w, h):
-    """Map strip: sea, yellow line, Nuseirat, tank silhouette."""
-    draw.rectangle([x, y, x + w, y + h], fill=(232, 226, 200))
-    # sea
-    draw.polygon([(x, y), (x + w * 0.28, y), (x + w * 0.22, y + h),
-                  (x, y + h)], fill=(150, 190, 214))
-    draw.text((x + 6, y + h * 0.45), "SEA", font=font(SANS_B, 9), fill=(255, 255, 255))
-    # yellow line (dashed), no label: the story text below names it
-    lx = x + w * 0.55
-    for i in range(8):
-        y1 = y + 4 + i * (h - 8) / 8
-        y2 = y + 4 + (i + 0.55) * (h - 8) / 8
-        draw.line([lx, y1, lx, y2], fill=(230, 190, 20), width=4)
-    # tank
-    tx, ty = x + w * 0.62, y + h * 0.62
-    draw.rectangle([tx, ty, tx + 34, ty + 10], fill=(90, 96, 70))
-    draw.rectangle([tx + 6, ty - 8, tx + 22, ty], fill=(90, 96, 70))
-    draw.line([tx + 22, ty - 4, tx + 40, ty - 8], fill=(60, 64, 46), width=3)
-    for i in range(4):
-        draw.ellipse([tx + 3 + i * 8, ty + 10, tx + 9 + i * 8, ty + 16], fill=(60, 64, 46))
-
-
-def illo_jeffries(draw, x, y, w, h):
-    """Capitol dome and a ballot box with a green check. No text inside."""
-    draw.rectangle([x, y, x + w, y + h], fill=(232, 236, 240))
-    # dome, left of centre
-    dx, dy = x + 62, y + 26
-    draw.pieslice([dx - 22, dy - 22, dx + 22, dy + 4], 180, 360, fill=(240, 240, 238))
-    draw.rectangle([dx - 25, dy + 2, dx + 25, dy + 9], fill=(220, 220, 216))
-    for i in range(5):
-        draw.rectangle([dx - 23 + i * 10, dy + 11, dx - 16 + i * 10, dy + 26],
-                       fill=(220, 220, 216))
-    draw.rectangle([dx - 27, dy + 26, dx + 27, dy + 31], fill=(200, 200, 194))
-    draw.line([dx, dy - 22, dx, dy - 30], fill=INK, width=2)
-    # ballot box + check, top right
-    bx, by = x + w - 44, y + 8
-    draw.rectangle([bx, by, bx + 36, by + 26], fill=(255, 255, 255),
-                   outline=NAVY, width=2)
-    draw.line([bx + 8, by + 14, bx + 15, by + 21], fill=(30, 120, 60), width=3)
-    draw.line([bx + 15, by + 21, bx + 29, by + 6], fill=(30, 120, 60), width=3)
-
-
-def illo_gta(draw, x, y, w, h):
-    """Purple panel, game controller. The headline below names the game."""
-    draw.rectangle([x, y, x + w, y + h], fill=(88, 40, 140))
-    # controller
-    cx, cy = x + w * 0.5, y + h * 0.5
-    draw.rounded_rectangle([cx - 52, cy - 20, cx + 52, cy + 20], radius=16,
-                           fill=(240, 240, 244))
-    draw.ellipse([cx - 40, cy - 8, cx - 26, cy + 6], fill=(88, 40, 140))
-    draw.ellipse([cx + 26, cy - 8, cx + 40, cy + 6], fill=(88, 40, 140))
-    for dx, dy, col in [(-32, -2, (220, 60, 60)), (32, -2, (60, 160, 80)),
-                        (-32, 8, (60, 110, 220)), (32, 8, (230, 200, 40))]:
-        draw.ellipse([cx + dx - 4, cy + dy - 4, cx + dx + 4, cy + dy + 4], fill=col)
-
-
-def illo_sudan(draw, x, y, w, h):
-    """Desert town, drone overhead, big 37 KILLED."""
-    draw.rectangle([x, y, x + w, y + h], fill=(244, 222, 178))
-    draw.ellipse([x + w * 0.82, y + 6, x + w * 0.94, y + 18], fill=(245, 166, 52))
-    # town blocks
-    for bx, bw, bh in [(0.04, 0.18, 0.30), (0.26, 0.14, 0.42), (0.44, 0.20, 0.34),
-                       (0.68, 0.16, 0.46), (0.86, 0.12, 0.30)]:
-        draw.rectangle([x + w * bx, y + h - 12 - h * bh, x + w * (bx + bw),
-                        y + h - 12], fill=(190, 160, 120))
-    draw.rectangle([x, y + h - 12, x + w, y + h], fill=(214, 186, 140))
-    # drone, moved right so it never touches the big figure
-    dx, dy = x + 108, y + 14
-    draw.rectangle([dx - 10, dy - 3, dx + 10, dy + 3], fill=(60, 60, 60))
-    draw.line([dx - 15, dy - 7, dx + 15, dy - 7], fill=(60, 60, 60), width=2)
-    draw.line([dx - 15, dy + 7, dx + 15, dy + 7], fill=(60, 60, 60), width=2)
-    draw.text((x + 8, y + 6), "37 KILLED", font=font(SANS_B, 16), fill=RED)
-
-
-def illo_uk(draw, x, y, w, h):
-    """Rising bar chart, 3.6% in clear space at top left."""
-    draw.rectangle([x, y, x + w, y + h], fill=(238, 240, 244))
-    # bars, all inside the box
-    base = y + h - 18
-    for i, bh in enumerate([10, 14, 18, 24, 30]):
-        bx = x + 12 + i * 26
-        draw.rectangle([bx, base - bh, bx + 18, base], fill=NAVY if i < 4 else RED)
-    draw.line([x + 8, base, x + w - 8, base], fill=INK, width=2)
-    draw.text((x + 8, y + 6), "3.6%", font=font(SANS_B, 20), fill=RED)
-
-
-def illo_cop31(draw, x, y, w, h):
-    """Globe with a leaf, two arrows pulling apart. No text inside."""
-    draw.rectangle([x, y, x + w, y + h], fill=(226, 238, 226))
-    # globe, fully inside the box
-    cx, cy, r = x + 48, y + 32, 20
-    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(90, 160, 200))
-    draw.ellipse([cx - 13, cy - 10, cx - 3, cy + 2], fill=(90, 170, 90))
-    draw.ellipse([cx + 2, cy + 2, cx + 12, cy + 12], fill=(90, 170, 90))
-    # leaf on top of the globe
-    draw.ellipse([cx - 5, cy - r - 6, cx + 13, cy - r + 8], fill=(60, 140, 60))
-    # split arrows
-    ax = x + 96
-    draw.line([ax, cy - 6, ax + 34, cy - 22], fill=RED, width=3)
-    draw.polygon([(ax + 34, cy - 22), (ax + 26, cy - 24), (ax + 30, cy - 14)], fill=RED)
-    draw.line([ax, cy + 6, ax + 34, cy + 22], fill=NAVY, width=3)
-    draw.polygon([(ax + 34, cy + 22), (ax + 26, cy + 20), (ax + 30, cy + 12)], fill=NAVY)
-
-
-def illo_factory(draw, x, y, w, h):
-    """Sawtooth factory, chimney, small crowd. One short label, clear of the roof."""
-    draw.rectangle([x, y, x + w, y + h], fill=(240, 232, 214))
-    # factory, roof peaks below the label
-    fx, fy = x + 8, y + 34
-    draw.rectangle([fx, fy, fx + w - 16, y + h - 10], fill=(180, 120, 90))
-    for i in range(4):
-        draw.polygon([(fx + i * 34, fy), (fx + i * 34 + 17, fy - 12),
-                      (fx + i * 34 + 34, fy)], fill=(150, 96, 70))
-    draw.rectangle([fx + w - 30, fy - 22, fx + w - 20, fy], fill=(120, 110, 100))
-    draw.ellipse([fx + w - 32, fy - 32, fx + w - 16, fy - 20], fill=(200, 200, 200))
-    # crowd, in front of the factory
-    for i in range(5):
-        cx = x + 16 + i * 26
-        draw.ellipse([cx, y + h - 22, cx + 10, y + h - 12], fill=(60, 60, 90))
-        draw.rectangle([cx - 2, y + h - 12, cx + 12, y + h - 4], fill=(60, 60, 90))
-    draw.text((x + 8, y + 4), "55 FACTORIES", font=font(SANS_B, 13), fill=RED)
-
-
-def illo_border(draw, x, y, w, h):
-    """Two arrows facing across a border line, mountains behind."""
-    draw.rectangle([x, y, x + w, y + h], fill=(238, 232, 214))
-    # mountains
-    draw.polygon([(x, y + h - 12), (x + w * 0.3, y + 14), (x + w * 0.55, y + h - 12)],
-                 fill=(170, 160, 130))
-    draw.polygon([(x + w * 0.4, y + h - 12), (x + w * 0.7, y + 22),
-                  (x + w, y + h - 12)], fill=(150, 140, 112))
-    # border line
-    bx = x + w * 0.5
-    for i in range(6):
-        y1 = y + 6 + i * (h - 18) / 6
-        draw.line([bx, y1, bx, y1 + (h - 18) / 12], fill=RED, width=3)
-    # arrows
-    draw.line([x + 10, y + h * 0.4, bx - 8, y + h * 0.4], fill=NAVY, width=4)
-    draw.polygon([(bx - 8, y + h * 0.4), (bx - 18, y + h * 0.4 - 6),
-                  (bx - 18, y + h * 0.4 + 6)], fill=NAVY)
-    draw.line([x + w - 10, y + h * 0.6, bx + 8, y + h * 0.6], fill=RED, width=4)
-    draw.polygon([(bx + 8, y + h * 0.6), (bx + 18, y + h * 0.6 - 6),
-                  (bx + 18, y + h * 0.6 + 6)], fill=RED)
-
-
-def illo_ipo(draw, x, y, w, h):
-    """Rising stock chart, $83 in clear space at top left."""
-    draw.rectangle([x, y, x + w, y + h], fill=(232, 240, 232))
-    pts = [(x + 8, y + 40), (x + 48, y + 34), (x + 80, y + 22),
-           (x + 112, y + 28), (x + 148, y + 12)]
-    draw.line(pts, fill=(30, 120, 60), width=3)
-    draw.polygon([(pts[-1][0], pts[-1][1]), (pts[-1][0] - 9, pts[-1][1] - 1),
-                  (pts[-1][0] - 2, pts[-1][1] + 9)], fill=(30, 120, 60))
-    for px, py in pts:
-        draw.ellipse([px - 3, py - 3, px + 3, py + 3], fill=(30, 120, 60))
-    draw.text((x + 8, y + 6), "$83", font=font(SANS_B, 26), fill=NAVY)
-
-
-ILLOS = {
-    1: illo_gulf, 2: illo_plane, 3: illo_drones_night, 4: illo_voyager,
-    5: illo_eu_loan, 6: illo_fed, 7: illo_cyclone, 8: illo_gaza,
-    9: illo_jeffries, 10: illo_gta, 11: illo_sudan, 12: illo_uk,
-    13: illo_cop31, 14: illo_factory, 15: illo_border, 16: illo_ipo,
+# Big figures laid over the pictures, in clear space: (lines, style, pos).
+# style "badge" = dark navy chip; "chip" = paper chip; "plain" = bare bold text.
+# pos "tl" = top-left, "bl" = bottom-left, "tr" = top-right.
+ILLO_LABELS = {
+    3: ([("141 FIRED", (255, 255, 255), 15), ("126 DOWNED", (255, 214, 90), 15)], "badge", "tl"),
+    4: ([("1 LIGHT-DAY", (255, 214, 90), 17), ("25.9 billion km from Earth", (255, 255, 255), 10)], "badge", "tl"),
+    # 5 has no label: the flags + arrow + coins fill the frame and the
+    # headline below already carries the \u20ac45bn figure.
+    11: ([("37 KILLED", RED, 16)], "plain", "tl"),
+    12: ([("3.6%", RED, 20)], "plain", "tr"),
+    14: ([("55 FACTORIES", RED, 13)], "chip", "tl"),
+    16: ([("$83", NAVY, 26)], "plain", "tl"),
 }
 
 
-# ---------------------------------------------------------------- layout
+def draw_illo_label(draw, num, x, y, w, h):
+    """Draw the big-figure label for illustration `num`, if it has one."""
+    spec = ILLO_LABELS.get(num)
+    if not spec:
+        return
+    lines, style, pos = spec
+    fonts = [font(SANS_B, size) for _t, _c, size in lines]
+    widths = [draw.textlength(t, font=f) for (t, _c, _s), f in zip(lines, fonts)]
+    total_h = sum(f.size + 4 for f in fonts) + 4
+    if pos == "bl":
+        ox, oy = x + 8, y + h - total_h - 6
+    elif pos == "tr":
+        ox, oy = x + w - 8 - max(widths), y + 6
+    else:
+        ox, oy = x + 8, y + 6
+    if style == "badge":
+        bw = max(widths) + 16
+        bh = total_h + 4
+        draw.rectangle([ox - 2, oy - 4, ox + bw, oy + bh], fill=(16, 24, 46))
+        tx = ox + 6
+    elif style == "chip":
+        bw = max(widths) + 12
+        bh = total_h + 2
+        draw.rectangle([ox - 2, oy - 2, ox + bw, oy + bh], fill=PAPER)
+        tx = ox + 4
+    else:
+        tx = ox
+    yy = oy
+    for (text, colour, _s), f in zip(lines, fonts):
+        draw.text((tx, yy), text, font=f, fill=colour)
+        yy += f.size + 4
+
+
+def draw_illo(img, draw, num, x, y, w, h):
+    paste_illo(img, num, x, y, w, h)
+    draw_illo_label(draw, num, x, y, w, h)
+
+
+# ---------------------------------------------------------------- map data
 
 LAND = [
     (0, [(10, 20), (36, 58)]),
@@ -675,6 +402,8 @@ def field_counts():
     return c
 
 
+# ---------------------------------------------------------------- layout
+
 def draw_masthead(draw):
     draw.rectangle([0, 0, W, 84], fill=NAVY)
     draw.rectangle([0, 84, W, 87], fill=GOLD)
@@ -742,14 +471,14 @@ def card_frame(draw, x, y, w, h):
     draw.rectangle([x, y, x + w, y + h], fill=CARD, outline=RULE, width=1)
 
 
-def draw_lead(draw, s, x, y, w, h):
+def draw_lead(img, draw, s, x, y, w, h):
     num, region, _field, tag, head, deck, src, _lon, _lat = s
     card_frame(draw, x, y, w, h)
     # measure the headline first: a two-line headline shrinks the picture
     # so the deck still fits inside the card (no text may cross the frame)
     lines = wrap(draw, head, font(SERIF_B, 15), w - 16, 2)
     ih = 104 if len(lines) == 1 else 92
-    ILLOS[num](draw, x + 1, y + 1, w - 2, ih)
+    draw_illo(img, draw, num, x + 1, y + 1, w - 2, ih)
     ty = y + ih + 4
     # number chip + region kicker; proof tag and source right-aligned
     draw.rectangle([x + 8, ty, x + 24, ty + 14], fill=REGION_COLORS[region])
@@ -767,10 +496,10 @@ def draw_lead(draw, s, x, y, w, h):
         draw.text((x + 8, dy + j * 11), ln, font=font(SANS, 9), fill=(60, 60, 60))
 
 
-def draw_small(draw, s, x, y, w, h):
+def draw_small(img, draw, s, x, y, w, h):
     num, region, _field, _tag, head, deck, src, _lon, _lat = s
     card_frame(draw, x, y, w, h)
-    ILLOS[num](draw, x + 1, y + 1, w - 2, 62)
+    draw_illo(img, draw, num, x + 1, y + 1, w - 2, 62)
     ty = y + 66
     draw.rectangle([x + 6, ty, x + 20, ty + 12], fill=REGION_COLORS[region])
     draw.text((x + 13, ty + 1), str(num), font=font(SANS_B, 9),
@@ -908,13 +637,13 @@ def render():
     # 4 leads
     lead_w = 246
     for i, s in enumerate(STORIES[:4]):
-        draw_lead(draw, s, 8 + i * (lead_w + 8), 158, lead_w, 176)
+        draw_lead(img, draw, s, 8 + i * (lead_w + 8), 158, lead_w, 176)
     # 12 small cards, two rows of six
     small_w = 161
     for i, s in enumerate(STORIES[4:10]):
-        draw_small(draw, s, 8 + i * (small_w + 8), 338, small_w, 146)
+        draw_small(img, draw, s, 8 + i * (small_w + 8), 338, small_w, 146)
     for i, s in enumerate(STORIES[10:16]):
-        draw_small(draw, s, 8 + i * (small_w + 8), 488, small_w, 146)
+        draw_small(img, draw, s, 8 + i * (small_w + 8), 488, small_w, 146)
     # bottom: map + briefs
     draw_map(draw, 8, 640, 300, 140)
     draw_legend(draw, 8, 802, 300)

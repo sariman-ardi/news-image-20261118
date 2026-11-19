@@ -1,49 +1,57 @@
-[![make.fun](https://make.fun/badge/news-image-20261118.svg)](https://make.fun/bounty/news-image-20261118)
-[![rank](https://make.fun/badge/news-image-20261118/sariman-ardi/news-image-20261118/rank.svg)](https://make.fun/bounty/news-image-20261118)
-[![reward](https://make.fun/badge/news-image-20261118/sariman-ardi/news-image-20261118/reward.svg)](https://make.fun/bounty/news-image-20261118)
+# Wednesday 18 November 2026 — one page, 52 stories
 
-# World News in One Image — 18 November 2026
+[![make.fun](https://make.fun/badge/news-image-20261118.svg)](https://make.fun/c/news-image-20261118)
+[![rank](https://make.fun/badge/news-image-20261118/sariman-ardi/news-image-20261118/rank.svg)](https://make.fun/c/news-image-20261118)
+[![reward](https://make.fun/badge/news-image-20261118/sariman-ardi/news-image-20261118/reward.svg)](https://make.fun/c/news-image-20261118)
 
-One image that sums up Wednesday 18 November 2026's world news, built for
-the [make.fun bounty](https://make.fun/bounty/news-image-20261118)
-"news-image-20261118" (total prize $250, 1st place $50).
+A single 1024×1024 newspaper page summarising world news from
+Wednesday 18 November 2026 — everything on the page happened, or was
+first reported, on that day.
 
-## The six stories
+## What is on the page
 
-1. **Ukraine hits Crimean Bridge again** — Kyiv strikes the bridge for a
-   second day as Russia hits bridges in Kyiv.
-2. **Iran drones target US radar in Bahrain** — the US says the drones were
-   intercepted; US jets hit a missile site on Qeshm Island in reply.
-3. **Trump lands in Manila for Quad talks** — the US president joins Quad
-   leaders before a planned visit to China.
-4. **Nvidia sales double to $115.8bn** — the board rules out bringing back
-   ex-CEO Jensen Huang after a record quarter.
-5. **Cyclone Akvan gains strength** — the storm over the Bay of Bengal is
-   set to become severe by 19 November.
-6. **US loses measles-free status** — PAHO ends the 26-year status after
-   5,412 cases in 2026, the most since 1991.
+- **52 stories across 7 regions** (Asia 7, Europe 10, Americas 12,
+  Middle East 4, Global 9, Africa 7, Oceania 3), every story named with
+  its source.
+- **16 original AI illustrations** — no photos. The four lead stories
+  and the twelve drawn stories each carry a detailed editorial
+  drawing: the Gulf drone routes, the Shenzhen tarmac welcome, the
+  night drone attack on Ukraine, Voyager 1 one light-day out, the
+  €45bn EU loan, the Fed's falling Dow, Cyclone Akvan, the Gaza
+  yellow line, the Speaker vote, the GTA VI launch, El Obeid, UK
+  inflation, the COP31 split, the Bangladesh factory shutdowns, the
+  Ethiopia–Eritrea border, and the record Anthropic IPO. The pictures
+  carry no words; the big figures (141 fired, 1 light-day, 37 killed,
+  3.6%, 55 factories, $83) are laid out on top of them.
+- **A UTC timeline** of the day in eight moments, from the overnight
+  drone attacks to the Wall Street close.
+- **A numbered world map** ("Where it happened") with region-coloured
+  pins for stories 1–16 and dots for the 36 briefs.
+- **"How sure"** — every claim is tagged CONFIRMED, CLAIM or
+  SOURCES, and the big numbers carry their proof (141 drones fired —
+  Kyiv air force; 126 downed).
+- **"The day in numbers"** — 141 drones, €45bn, 25.9bn km, $81.3bn,
+  −1.1%, $3,746 gold.
+- **A date check** — stories first reported on Tuesday 17 November
+  are left out, and events that had not happened yet on Wednesday
+  (the Trump–Xi–Putin summit, Cyclone Akvan's landfall) are marked
+  as not yet news.
 
-Sources: Reuters, AP, The Guardian, PAHO, Nvidia, IMD.
+## How it is built
 
-## The image
-
-`entry.png` (1024×1024, PNG) is a clean infographic drawn with Python's
-Pillow library: a dated header, one panel per story with a short headline,
-one line of summary and a small drawn icon. No photographs and no
-downloaded artwork — every pixel is drawn by the build script.
-
-## How to run
+`build_image.py` lays out the whole page with Pillow over the
+pre-rendered illustrations in `illustrations/` — no network, no
+randomness. Running it twice produces a byte-identical PNG
+(`entry.png`, 1024×1024, under 1 MiB). `main.py` verifies the PNG
+and copies it to `/output/entry.png`.
 
 ```sh
-python3 build_image.py        # rebuild entry.png from the news data
-mkdir -p out
-MAKEFUN_OUTPUT_DIR=out python3 main.py   # writes out/entry.png
+python3 build_image.py   # writes entry.png
+python3 main.py          # writes /output/entry.png
 ```
 
-`main.py` uses only the Python standard library, needs no network, and
-copies `entry.png` to `$MAKEFUN_OUTPUT_DIR/entry.png`. Running it twice
-writes byte-identical output.
+## Sources
 
-## License
-
-MIT — see [LICENSE](LICENSE).
+Reuters · AP · AFP · DW · Al Jazeera · NPR · CBS · Fed · ONS · IMD ·
+NASA · Amnesty · WHO · Bloomberg · ATP · AAP · Daily Star.
+All illustrations are original AI artwork.
